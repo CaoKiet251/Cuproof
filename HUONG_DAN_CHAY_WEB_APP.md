@@ -1,13 +1,13 @@
 # HƯỚNG DẪN CHẠY HỆ THỐNG CUPROOF WEB APPLICATION
 
-## 🎯 Tổng quan
+## Tổng quan
 
 Hệ thống Cuproof Web Application bao gồm:
 - **Cuproof Core**: Hệ thống zero-knowledge range proof (Rust)
 - **Blockchain Integration**: Smart contracts trên Hardhat local network
-- **Web Application**: Giao diện web với Next.js
+- **Web Application**: Giao diện web với React.js
 
-## 📋 Yêu cầu hệ thống
+## Yêu cầu hệ thống
 
 ### Phần mềm cần thiết:
 1. **Node.js** (v16 trở lên)
@@ -24,7 +24,7 @@ cuproof/
 └── target/                 # Compiled Cuproof CLI
 ```
 
-## 🚀 Các bước chạy hệ thống
+## Các bước chạy hệ thống
 
 ### Bước 1: Chuẩn bị Cuproof CLI
 
@@ -102,7 +102,7 @@ Web app sẽ chạy trên `http://localhost:3000`
    - Import account với seed phrase: `test test test test test test test test test test test junk`
    - Hoặc import private keys từ Hardhat accounts
 
-## 🎮 Cách sử dụng ứng dụng
+## Cách sử dụng ứng dụng
 
 ### Cho chủ sở hữu văn bằng (Students):
 
@@ -129,53 +129,7 @@ Web app sẽ chạy trên `http://localhost:3000`
 2. **Quản lý verifiers**: Thêm/xóa authorized verifiers
 3. **Theo dõi hệ thống**: Xem trạng thái contracts và parameters
 
-## 🔧 Troubleshooting
-
-### Lỗi thường gặp:
-
-#### 1. "MetaMask not installed"
-- **Giải pháp**: Cài đặt MetaMask extension cho browser
-
-#### 2. "Contract not deployed"
-- **Giải pháp**: 
-  ```bash
-  cd cuproof-blockchain
-  npm run deploy:setup
-  ```
-
-#### 3. "Cuproof CLI not found"
-- **Giải pháp**:
-  ```bash
-  cd ..
-  cargo build --release
-  ```
-
-#### 4. "Hardhat blockchain not running"
-- **Giải pháp**:
-  ```bash
-  cd cuproof-blockchain
-  npm run node
-  ```
-
-#### 5. "Unauthorized verifier"
-- **Giải pháp**: 
-  - Kết nối với authorized verifier address
-  - Hoặc owner phải thêm address của bạn làm verifier
-
-#### 6. "Transaction failed"
-- **Giải pháp**:
-  - Kiểm tra MetaMask connection
-  - Đảm bảo có đủ ETH balance
-  - Kiểm tra network settings
-
-### Debug mode:
-
-Thêm vào `.env.local`:
-```env
-NEXT_PUBLIC_DEBUG=true
-```
-
-## 📊 Test Accounts
+## Test Accounts
 
 Sau khi deploy, bạn có các test accounts:
 
@@ -193,45 +147,3 @@ Subject 2: 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 ```
 
-## 🎯 Workflow hoàn chỉnh
-
-### Scenario: Student chứng minh điểm số
-
-1. **Student** (Subject 1):
-   - Kết nối ví với Subject 1 address
-   - Tạo proof cho điểm 85 trong khoảng [80, 90]
-   - Download proof file
-
-2. **Verifier** (Verifier 1):
-   - Kết nối ví với Verifier 1 address
-   - Upload proof file từ student
-   - Điền thông tin và verify
-   - Submit kết quả lên blockchain
-
-3. **Kiểm tra kết quả**:
-   - Proof được lưu trên blockchain
-   - Có thể query verification status
-   - Audit trail đầy đủ
-
-## 🚀 Production Deployment
-
-Để deploy lên production:
-
-1. **Chọn network**: Mainnet, Polygon, BSC, etc.
-2. **Update configuration**: 
-   - `hardhat.config.js` - thêm production network
-   - `.env.local` - update contract addresses
-3. **Deploy contracts**: `npm run deploy:mainnet`
-4. **Update web app**: Rebuild và deploy lên Vercel/Netlify
-5. **Security audit**: Audit smart contracts trước khi deploy
-
-## 📞 Hỗ trợ
-
-Nếu gặp vấn đề:
-
-1. Kiểm tra console logs trong browser
-2. Kiểm tra terminal logs
-3. Verify tất cả prerequisites đã được cài đặt
-4. Đảm bảo tất cả services đang chạy
-
-**Happy coding! 🎉**
