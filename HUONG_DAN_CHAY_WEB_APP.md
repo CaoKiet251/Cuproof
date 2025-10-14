@@ -21,7 +21,6 @@ cuproof/
 ├── cuproof-blockchain/     # Smart contracts và Hardhat
 ├── cuproof-web-app/        # Web application
 ├── src/                    # Cuproof core (Rust)
-└── target/                 # Compiled Cuproof CLI
 ```
 
 ## Các bước chạy hệ thống
