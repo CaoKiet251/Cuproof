@@ -9,7 +9,8 @@ module.exports = {
       optimizer: {
         enabled: true,
         runs: 200
-      }
+      },
+      viaIR: true  // Enable IR-based code generation to avoid "Stack too deep" errors
     }
   },
   networks: {

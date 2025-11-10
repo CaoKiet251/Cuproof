@@ -5,14 +5,12 @@ use rand::rngs::OsRng;
 
 fn miller_rabin(n: &BigUint, k: u32) -> bool {
     if *n < BigUint::from(2u32) { return false; }
-    // small primes quick check
     for p in [2u32,3,5,7,11,13,17,19,23,29,31,37] {
         let p_b = BigUint::from(p);
         if &p_b == n { return true; }
         if n % &p_b == BigUint::zero() { return false; }
     }
 
-    // write n-1 = d * 2^r
     let one = BigUint::one();
     let n_minus_one = n - &one;
     let mut d = n_minus_one.clone();
@@ -21,12 +19,10 @@ fn miller_rabin(n: &BigUint, k: u32) -> bool {
 
     let mut rng = OsRng;
     'witness: for _ in 0..k {
-        // pick random a in [2, n-2]
         let two = BigUint::from(2u32);
         let n_minus_two = n - &two;
         if n_minus_two <= two { return true; }
         use rand::RngCore;
-        // sample a by rejection using bytes length
         let mut a;
         loop {
             let mut buf = vec![0u8; n.bits() as usize / 8 + 1];
@@ -36,7 +32,6 @@ fn miller_rabin(n: &BigUint, k: u32) -> bool {
             if a >= two && a <= n_minus_two { break; }
         }
 
-        // x = a^d mod n
         let mut x = a.modpow(&d, n);
         if x == one || x == n_minus_one { continue 'witness; }
         for _ in 0..(r-1) {
@@ -51,7 +46,6 @@ fn miller_rabin(n: &BigUint, k: u32) -> bool {
 fn generate_probable_prime(bits: usize) -> BigUint {
     let mut rng = OsRng;
     loop {
-        // ensure top bit set and odd
         let high = BigUint::one() << (bits.saturating_sub(1) as u32);
         let lower = BigUint::from_bytes_be(&{
             let mut buf = vec![0u8; bits.saturating_sub(1) / 8 + 1];
@@ -66,16 +60,13 @@ fn generate_probable_prime(bits: usize) -> BigUint {
 pub fn trusted_setup(bits: usize) -> (BigInt, BigInt, BigInt) {
     let mut rng = OsRng;
 
-    // RSA-style modulus n = p * q where p and q are 1024-bit primes
-    // For 2048-bit modulus, we need 1024-bit primes
-    let prime_bits = 1024; // Fixed: always generate 1024-bit primes
+    let prime_bits = 1024;
     let p = generate_probable_prime(prime_bits);
     let mut q = generate_probable_prime(prime_bits);
     while q == p { q = generate_probable_prime(prime_bits); }
     let n_u = &p * &q;
     let n = BigInt::from_biguint(Sign::Plus, n_u.clone());
 
-    // choose g, h uniformly in Z_n^* (co-prime with n)
     let two = BigInt::from(2u32);
     let one = BigInt::one();
     let mut g;
@@ -92,20 +83,51 @@ pub fn trusted_setup(bits: usize) -> (BigInt, BigInt, BigInt) {
     (g, h, n)
 }
 
-/// Fast test setup for development/testing purposes
-/// Uses smaller primes for quick testing while maintaining RSA structure
 pub fn fast_test_setup() -> (BigInt, BigInt, BigInt) {
     let mut rng = OsRng;
 
-    // Use smaller primes for fast testing: 256-bit primes -> 512-bit modulus
-    let prime_bits = 256; // Much faster than 1024-bit
+    let prime_bits = 256;
     let p = generate_probable_prime(prime_bits);
     let mut q = generate_probable_prime(prime_bits);
     while q == p { q = generate_probable_prime(prime_bits); }
     let n_u = &p * &q;
     let n = BigInt::from_biguint(Sign::Plus, n_u.clone());
 
-    // choose g, h uniformly in Z_n^* (co-prime with n)
+    let two = BigInt::from(2u32);
+    let one = BigInt::one();
+    let mut g;
+    loop {
+        g = rng.gen_bigint_range(&two, &n);
+        if g.gcd(&n) == one { break; }
+    }
+    let mut h;
+    loop {
+        h = rng.gen_bigint_range(&two, &n);
+        if h.gcd(&n) == one && h != g { break; }
+    }
+
+    (g, h, n)
+}
+
+/// Setup for 256-bit modulus using 128-bit primes
+/// 
+/// This function generates RSA-style modulus n = p * q where p and q are 128-bit primes,
+/// resulting in a 256-bit modulus suitable for EVM compatibility.
+/// 
+/// # Returns
+/// A tuple (g, h, n) where:
+/// - g, h are generators of the RSA group Z_n^*
+/// - n is a 256-bit RSA modulus (p * q)
+pub fn setup_256() -> (BigInt, BigInt, BigInt) {
+    let mut rng = OsRng;
+
+    let prime_bits = 128;
+    let p = generate_probable_prime(prime_bits);
+    let mut q = generate_probable_prime(prime_bits);
+    while q == p { q = generate_probable_prime(prime_bits); }
+    let n_u = &p * &q;
+    let n = BigInt::from_biguint(Sign::Plus, n_u.clone());
+
     let two = BigInt::from(2u32);
     let one = BigInt::one();
     let mut g;
@@ -127,10 +149,6 @@ mod tests {
     use super::*;
     use num_traits::Zero;
 
-    // Purpose: ensure generated (g,h) are in Z*_n, non-equal, and gcd(g,n)=gcd(h,n)=1
-    // Params: none
-    // Output: assertions on coprimality and distinctness
-    // Usage: `cargo test -- src::setup` or `cargo test`
     #[test]
     fn fast_setup_generates_valid_params() {
         let (g, h, n) = fast_test_setup();
@@ -139,4 +157,14 @@ mod tests {
         assert_ne!(g, h);
         assert!(!n.is_zero());
     }
+
+    #[test]
+    fn setup_256_generates_valid_params() {
+        let (g, h, n) = setup_256();
+        assert!(g.gcd(&n).is_one());
+        assert!(h.gcd(&n).is_one());
+        assert_ne!(g, h);
+        assert!(!n.is_zero());
+    }
 }
+

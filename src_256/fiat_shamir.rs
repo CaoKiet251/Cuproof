@@ -1,10 +1,21 @@
 use num_bigint::BigInt;
-use sha2::{Digest, Sha256};
+use sha3::{Keccak256, Digest};
 
 pub fn fiat_shamir(inputs: &[&BigInt]) -> BigInt {
-    let mut hasher = Sha256::new();
+    let mut hasher = Keccak256::new();
     for i in inputs {
-        hasher.update(i.to_str_radix(10).as_bytes());
+        // Convert BigInt to bytes (big-endian, 32 bytes for uint256)
+        let (sign, bytes) = i.to_bytes_be();
+        let mut padded = vec![0u8; 32];
+        let start = 32usize.saturating_sub(bytes.len());
+        padded[start..].copy_from_slice(&bytes);
+        // Handle negative by inverting (though in practice all values should be positive)
+        if sign == num_bigint::Sign::Minus {
+            for b in &mut padded {
+                *b = !*b;
+            }
+        }
+        hasher.update(&padded);
     }
     let hash = hasher.finalize();
     BigInt::from_bytes_be(num_bigint::Sign::Plus, &hash)
@@ -15,10 +26,6 @@ mod tests {
     use super::*;
     use num_bigint::BigInt;
 
-    // Purpose: ensure Fiat–Shamir is deterministic and sensitive to input ordering/content
-    // Params: small BigInt inputs
-    // Output: equality/inequality assertions
-    // Usage: `cargo test -- src::fiat_shamir` or `cargo test`
     #[test]
     fn fs_deterministic_and_order_sensitive() {
         let a = BigInt::from(123);
@@ -35,3 +42,4 @@ mod tests {
         assert_ne!(h1, h3);
     }
 }
+

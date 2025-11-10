@@ -15,28 +15,22 @@ pub fn inner_product(a: &[BigInt], b: &[BigInt]) -> BigInt {
     a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
 }
 
-/// Convert BigInt to hex string (two's complement positive representation)
-/// - params: x reference to BigInt
-/// - returns: lowercase hex string without 0x prefix
-/// - usage: persist BigInt values to text files
 pub fn bigint_to_hex(x: &BigInt) -> String {
     let (_sign, bytes) = x.to_bytes_be();
     hex::encode(bytes)
 }
 
-/// Parse BigInt from hex string (no 0x prefix)
-/// - params: s hex string
-/// - returns: BigInt parsed as positive number
-/// - usage: load BigInt values from text files
 pub fn hex_to_bigint(s: &str) -> BigInt {
-    let bytes = hex::decode(s.trim()).unwrap_or_default();
+    let trimmed = s.trim();
+    let cleaned = if trimmed.starts_with("0x") || trimmed.starts_with("0X") {
+        &trimmed[2..]
+    } else {
+        trimmed
+    };
+    let bytes = hex::decode(cleaned).unwrap_or_default();
     BigInt::from_bytes_be(num_bigint::Sign::Plus, &bytes)
 }
 
-/// Strictly parse BigInt from hex string
-/// - params: s hex string without 0x
-/// - returns: io::Result<BigInt> or InvalidData on bad/empty input
-/// - usage: robust file parsing to avoid silently accepting malformed data
 fn hex_to_bigint_strict(s: &str) -> io::Result<BigInt> {
     let t = s.trim();
     if t.is_empty() { return Err(io::Error::new(io::ErrorKind::InvalidData, "empty hex")); }
@@ -45,10 +39,6 @@ fn hex_to_bigint_strict(s: &str) -> io::Result<BigInt> {
     Ok(BigInt::from_bytes_be(num_bigint::Sign::Plus, &bytes))
 }
 
-/// Write all lines to a file, creating parent dirs if needed
-/// - params: path, lines
-/// - returns: io::Result
-/// - usage: helper for persisting params and proofs
 fn write_lines(path: &str, lines: &[String]) -> io::Result<()> {
     if let Some(parent) = Path::new(path).parent() { fs::create_dir_all(parent)?; }
     let mut f = fs::File::create(path)?;
@@ -59,19 +49,11 @@ fn write_lines(path: &str, lines: &[String]) -> io::Result<()> {
     Ok(())
 }
 
-/// Read all lines from a UTF-8 text file
-/// - params: path
-/// - returns: Vec of lines
-/// - usage: helper for loading params and proofs
 fn read_lines(path: &str) -> io::Result<Vec<String>> {
     let content = fs::read_to_string(path)?;
     Ok(content.lines().map(|s| s.to_string()).collect())
 }
 
-/// Save public parameters (g, h, n) to a file as hex per line
-/// - params: path, g, h, n
-/// - returns: io::Result
-/// - usage: persist trusted/fast setup output for later proving/verifying
 pub fn save_params(path: &str, g: &BigInt, h: &BigInt, n: &BigInt) -> io::Result<()> {
     let lines = vec![
         bigint_to_hex(g),
@@ -81,10 +63,6 @@ pub fn save_params(path: &str, g: &BigInt, h: &BigInt, n: &BigInt) -> io::Result
     write_lines(path, &lines)
 }
 
-/// Load public parameters (g, h, n) from a file
-/// - params: path
-/// - returns: (g, h, n)
-/// - usage: restore parameters for proving and verifying
 pub fn load_params(path: &str) -> io::Result<(BigInt, BigInt, BigInt)> {
     let lines = read_lines(path)?;
     if lines.len() < 3 { return Err(io::Error::new(io::ErrorKind::InvalidData, "params file too short")); }
@@ -94,13 +72,8 @@ pub fn load_params(path: &str) -> io::Result<(BigInt, BigInt, BigInt)> {
     Ok((g, h, n))
 }
 
-/// Save Cuproof to a file (simple line-based hex format)
-/// - params: path, proof
-/// - returns: io::Result
-/// - usage: send proof file to verifier
 pub fn save_proof(path: &str, proof: &Cuproof) -> io::Result<()> {
     let mut lines = Vec::new();
-    // Scalars
     lines.push(bigint_to_hex(&proof.A));
     lines.push(bigint_to_hex(&proof.S));
     lines.push(bigint_to_hex(&proof.T1));
@@ -116,21 +89,15 @@ pub fn save_proof(path: &str, proof: &Cuproof) -> io::Result<()> {
     lines.push(bigint_to_hex(&proof.t2));
     lines.push(bigint_to_hex(&proof.tau1));
     lines.push(bigint_to_hex(&proof.tau2));
-    // IPP vectors sizes
     lines.push(proof.ipp_proof.L.len().to_string());
     for x in &proof.ipp_proof.L { lines.push(bigint_to_hex(x)); }
     lines.push(proof.ipp_proof.R.len().to_string());
     for x in &proof.ipp_proof.R { lines.push(bigint_to_hex(x)); }
-    // IPP scalars
     lines.push(bigint_to_hex(&proof.ipp_proof.a));
     lines.push(bigint_to_hex(&proof.ipp_proof.b));
     write_lines(path, &lines)
 }
 
-/// Load Cuproof from a file written by save_proof
-/// - params: path
-/// - returns: Cuproof
-/// - usage: verifier loads file to verify
 pub fn load_proof(path: &str) -> io::Result<Cuproof> {
     let lines = read_lines(path)?;
     let mut i = 0usize;
@@ -140,7 +107,6 @@ pub fn load_proof(path: &str) -> io::Result<Cuproof> {
         Ok(s)
     };
 
-    // Scalars
     let A = hex_to_bigint_strict(&take(&mut i)?)?;
     let S = hex_to_bigint_strict(&take(&mut i)?)?;
     let T1 = hex_to_bigint_strict(&take(&mut i)?)?;
@@ -157,7 +123,6 @@ pub fn load_proof(path: &str) -> io::Result<Cuproof> {
     let tau1 = hex_to_bigint_strict(&take(&mut i)?)?;
     let tau2 = hex_to_bigint_strict(&take(&mut i)?)?;
 
-    // IPP vectors sizes
     let l_len: usize = take(&mut i)?.parse().map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid L length"))?;
     if l_len == 0 { return Err(io::Error::new(io::ErrorKind::InvalidData, "L length must be > 0")); }
     let mut L_vec = Vec::with_capacity(l_len);
@@ -168,7 +133,6 @@ pub fn load_proof(path: &str) -> io::Result<Cuproof> {
     let mut R_vec = Vec::with_capacity(r_len);
     for _ in 0..r_len { R_vec.push(hex_to_bigint_strict(&take(&mut i)?)?); }
 
-    // IPP scalars
     let a = hex_to_bigint_strict(&take(&mut i)?)?;
     let b = hex_to_bigint_strict(&take(&mut i)?)?;
     let zero = BigInt::from(0);
@@ -183,10 +147,6 @@ mod tests {
     use super::*;
     use num_bigint::BigInt;
 
-    // Purpose: verify hex roundtrip and inner_product basic behavior
-    // Params: small vectors and integers
-    // Output: equality assertions
-    // Usage: `cargo test -- src::util` or `cargo test`
     #[test]
     fn hex_roundtrip_and_inner_product() {
         let x = BigInt::from(123456789u64);
@@ -197,6 +157,7 @@ mod tests {
         let a = vec![BigInt::from(1), BigInt::from(2), BigInt::from(3)];
         let b = vec![BigInt::from(4), BigInt::from(5), BigInt::from(6)];
         let ip = inner_product(&a, &b);
-        assert_eq!(ip, BigInt::from(32)); // 1*4 + 2*5 + 3*6
+        assert_eq!(ip, BigInt::from(32));
     }
 }
+

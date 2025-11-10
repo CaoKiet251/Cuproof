@@ -77,18 +77,13 @@ pub fn cuproof_verify_with_range(proof: &Cuproof, g: &BigInt, h: &BigInt, n: &Bi
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::setup::fast_test_setup;
+    use crate::setup::setup_256;
     use crate::range_proof::cuproof_prove;
-    use crate::util::random_bigint;
-    use num_bigint::BigInt;
+    use crate::util::{random_bigint, save_proof, load_proof, save_params, load_params};
 
-    // Purpose: verify pass on honest proof and fail on tampered field
-    // Params: small demo range and random r
-    // Output: assertions on verifier boolean
-    // Usage: `cargo test -- src::verify` or `cargo test`
     #[test]
     fn verify_pass_and_tamper_fail() {
-        let (g, h, n) = fast_test_setup();
+        let (g, h, n) = setup_256();
         let a = BigInt::from(1);
         let b = BigInt::from(100);
         let v = BigInt::from(42);
@@ -96,9 +91,32 @@ mod tests {
         let proof = cuproof_prove(&v, &r, &a, &b, &g, &h, &n);
         assert!(cuproof_verify_with_range(&proof, &g, &h, &n, &a, &b));
 
-        // Tamper: flip T1 slightly (add 1) -> should fail
         let mut bad = proof.clone();
         bad.T1 = &bad.T1 + BigInt::from(1);
         assert!(!cuproof_verify_with_range(&bad, &g, &h, &n, &a, &b));
     }
+
+    #[test]
+    fn verify_save_and_load() {
+        let (g, h, n) = setup_256();
+        let a = BigInt::from(1);
+        let b = BigInt::from(100);
+        let v = BigInt::from(42);
+        let r = random_bigint(128);
+        
+        // Save params
+        save_params("test_params.txt", &g, &h, &n).unwrap();
+        
+        // Generate and save proof
+        let proof = cuproof_prove(&v, &r, &a, &b, &g, &h, &n);
+        save_proof("test_proof_save.txt", &proof).unwrap();
+        
+        // Load params and proof
+        let (g2, h2, n2) = load_params("test_params.txt").unwrap();
+        let proof2 = load_proof("test_proof_save.txt").unwrap();
+        
+        // Verify loaded proof
+        assert!(cuproof_verify_with_range(&proof2, &g2, &h2, &n2, &a, &b));
+    }
 }
+

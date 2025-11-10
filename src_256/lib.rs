@@ -6,6 +6,7 @@ pub mod range_proof;
 pub mod verify;
 pub mod util;
 pub mod benchmark;
+pub mod evm;
 
 #[cfg(test)]
 mod tests {
@@ -15,18 +16,16 @@ mod tests {
 
     #[test]
     fn test_basic_range_proof() {
-        let (g, h, n) = setup::trusted_setup(512);
+        let (g, h, n) = setup::setup_256();
         let a = 10.to_bigint().unwrap();
         let b = 100.to_bigint().unwrap();
         let v = 30.to_bigint().unwrap();
         let r = 42.to_bigint().unwrap();
 
-        // Đo thời gian tạo proof
         let start_prove = Instant::now();
         let proof = range_proof::cuproof_prove(&v, &r, &a, &b, &g, &h, &n);
         let prove_duration = start_prove.elapsed();
 
-        // Đo thời gian chứng minh proof
         let start_verify = Instant::now();
         let is_valid = verify::cuproof_verify(&proof, &g, &h, &n);
         let verify_duration = start_verify.elapsed();
@@ -40,7 +39,7 @@ mod tests {
 
     #[test]
     fn test_multiple_values() {
-        let (g, h, n) = setup::trusted_setup(512);
+        let (g, h, n) = setup::setup_256();
         let a = 0.to_bigint().unwrap();
         let b = 1000.to_bigint().unwrap();
         let r = 123.to_bigint().unwrap();
@@ -54,13 +53,11 @@ mod tests {
         for test_v in test_values {
             let v = test_v.to_bigint().unwrap();
             
-            // Đo thời gian tạo proof
             let start_prove = Instant::now();
             let proof = range_proof::cuproof_prove(&v, &r, &a, &b, &g, &h, &n);
             let prove_duration = start_prove.elapsed();
             total_prove_time += prove_duration;
             
-            // Đo thời gian chứng minh proof
             let start_verify = Instant::now();
             let is_valid = verify::cuproof_verify(&proof, &g, &h, &n);
             let verify_duration = start_verify.elapsed();
@@ -80,7 +77,7 @@ mod tests {
 
     #[test]
     fn test_different_ranges() {
-        let (g, h, n) = setup::trusted_setup(512);
+        let (g, h, n) = setup::setup_256();
         let r = 42.to_bigint().unwrap();
 
         let test_ranges = vec![
@@ -99,13 +96,11 @@ mod tests {
             let b = b_val.to_bigint().unwrap();
             let v = v_val.to_bigint().unwrap();
 
-            // Đo thời gian tạo proof
             let start_prove = Instant::now();
             let proof = range_proof::cuproof_prove(&v, &r, &a, &b, &g, &h, &n);
             let prove_duration = start_prove.elapsed();
             total_prove_time += prove_duration;
 
-            // Đo thời gian chứng minh proof
             let start_verify = Instant::now();
             let is_valid = verify::cuproof_verify(&proof, &g, &h, &n);
             let verify_duration = start_verify.elapsed();
@@ -124,3 +119,4 @@ mod tests {
         println!("  Average proof verification time: {:?}", total_verify_time / test_ranges_len as u32);
     }
 }
+
